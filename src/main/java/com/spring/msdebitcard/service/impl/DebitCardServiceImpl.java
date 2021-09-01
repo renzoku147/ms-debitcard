@@ -364,5 +364,42 @@ public class DebitCardServiceImpl implements DebitCardService{
 	public Flux<DebitCard> findByCustomerId(String idcustomer) {
 		return debitCardRepository.findByCustomerId(idcustomer);
 	}
+
+	@Override
+	public Mono<Optional<BankAccount>> findPrincipalBankAccount(Flux<Accounts> accountNumbers) {
+		return 	accountNumbers
+				.collectList()
+				.map(list -> {
+					Collections.sort(list,(a,b)->a.getPriority()-b.getPriority());
+					return list.get(0);
+				})
+				.flatMap(acc -> webClientCurrent.get().uri("/findByAccountNumber/{numberAccount}", acc.getAccountNumber())
+		                .accept(MediaType.APPLICATION_JSON)
+		                .retrieve()
+		                .bodyToMono(CurrentAccount.class)
+		                .map(currentAccount -> {
+		                    System.out.println("Encontro currentAccount > " + currentAccount.getId());
+		                    return Optional.of((BankAccount)currentAccount);
+		                })
+		                .switchIfEmpty(webClientFixed.get().uri("/findByAccountNumber/{numberAccount}", acc.getAccountNumber())
+		                        .accept(MediaType.APPLICATION_JSON)
+		                        .retrieve()
+		                        .bodyToMono(FixedTerm.class)
+		                        .map(fixedTerm -> {
+		                            System.out.println("Encontro fixedTerm > " + fixedTerm.getId());
+		                            return Optional.of((BankAccount)fixedTerm);
+		                        })
+		                        .switchIfEmpty(webClientSaving.get().uri("/findByAccountNumber/{numberAccount}", acc.getAccountNumber())
+		                                        .accept(MediaType.APPLICATION_JSON)
+		                                        .retrieve()
+		                                        .bodyToMono(SavingAccount.class)
+		                                        .map(savingAccount -> {
+		                                            System.out.println("Encontro savingAccount > " + savingAccount.getId());
+		                                            return Optional.of((BankAccount)savingAccount);
+		                                        }))
+		                        				.defaultIfEmpty(Optional.empty())
+		                        )
+		        );
+	}
 	
 }

@@ -32,6 +32,8 @@ public interface DebitCardService {
     
     Flux<Optional<BankAccount>> findBankAccount(Flux<Accounts> cardNumber, Customer customer);
     
+    Mono<Optional<BankAccount>> findPrincipalBankAccount(Flux<Accounts> cardNumber);
+    
     Mono<Optional<Card>> verifyCardNumber(String t);
     
     Flux<Optional<BankAccount>> updateBankAccount(Flux<Accounts> cardNumber, DebitCard debitCard);
